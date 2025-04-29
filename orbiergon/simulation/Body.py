@@ -1,6 +1,7 @@
 import math
 import numpy
 import random
+import pygame
 
 from typing import Literal
 
@@ -9,20 +10,31 @@ class Body:
     def __init__(self, pos: list, vel: float, acc: float, mass: float, fixed:bool=False,type:Literal['star','planet','particle']=None, color:str=None, id=None) -> 'Body':
         self.x = pos[0]
         self.y = pos[1]
-        self.pos = [self.x, self.y]
-        self.vel = vel
-        self.acc = acc
-        self.mass = mass
+        
+        self.vx = vel[0]
+        self.vy = vel[1]
+        
+        self.ax = acc[0]
+        self.ay = acc[1]
+        
+        self.fixed = fixed
         self.type = type
         self.color = color
-        self.fixed = fixed
+        self.mass = mass
         
-        self.ax = 0
-        self.ay = 0
-        self.vx = 0
-        self.vy = 0
         self.id = id
+    
         
+    def draw(self, screen, screen_pos: pygame.Vector2, scale: float):
+        if isinstance(self.color, tuple) or isinstance(self.color, list):
+            color = self.color
+        else:
+            color = (255,255,255)
+        radius = max(1, int(2 * math.sqrt(self.mass) * scale))
+        pygame.draw.circle(screen, color,
+                           (int(screen_pos.x), int(screen_pos.y)),
+                           radius)
+    
     def print_pos(self):
         print(f'Body <{self.id}> x={self.x} y={self.y}')
     
@@ -38,30 +50,26 @@ class Body:
     def update_default(self, bodies: list['Body']):
         if self.fixed:
             return
-        self.ax = 0
-        self.ay = 0
-        
-        for body in bodies:
-            if body is self :
+        dt = 0.05
+        self.ax = 0.0
+        self.ay = 0.0
+        for other in bodies:
+            if other is self:
                 continue
-            
-            dx = body.x - self.x
-            dy = body.y - self.y
-            
-            distance = math.hypot(dx, dy)
-            force = 1 * self.mass * body.mass / distance ** 2
-            
-            fx = force * dx / distance
-            fy = force * dy/distance
-            
-            self.ax = fx/self.mass
-            self.ay = fy/self.mass
-            
-        self.vx += self.ax
-        self.vy += self.ay
-        
-        self.x += self.vx
-        self.y += self.vy
-        self.pos = [self.x, self.y]
-        self.print_pos()
-            
+
+            dx = other.x - self.x
+            dy = other.y - self.y
+            dist_sq = dx*dx + dy*dy + 1e-5 ** 2
+            inv_dist = 1.0 / math.sqrt(dist_sq)
+            inv_dist3 = inv_dist * inv_dist * inv_dist
+
+            f = 1 * other.mass * inv_dist3
+            self.ax += f * dx
+            self.ay += f * dy
+
+        self.vx += self.ax * dt
+        self.vy += self.ay * dt
+
+        self.x  += self.vx * dt
+        self.y  += self.vy * dt
+        # self.print_pos()
