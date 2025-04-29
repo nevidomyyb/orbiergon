@@ -27,11 +27,12 @@ class Simulation:
         self.zoom_sensitivity = 0.1         
         self.pan_active = False
         self.pan_last = pygame.Vector2(0, 0)
-        # random.seed(1000)
+        
         
     def sim(self):
         pygame.init()
-        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.NOFRAME | pygame.RESIZABLE)
+        
         pygame.display.set_caption('Orbiergon')
         self.running = True
         self.simulation_thread = threading.Thread(target=self.run)
@@ -39,13 +40,17 @@ class Simulation:
         self.simulation_thread.start()
         self.run_render()
     
-    def create_rand_body(self, sun_mass):
-        r = random.uniform(100, 500)
-        theta = random.random() * math.tau
-        x = math.cos(theta) * r
-        y = math.sin(theta) * r
+    def create_rand_body(self, sun_mass, rel_pos:list=None):
         
-        m = random.uniform(0.05 * sun_mass, 0.1 * sun_mass)
+        r = random.uniform(50, 500)
+        theta = random.random() * math.tau
+        x = math.cos(theta) * r if not rel_pos else rel_pos[0] + (math.cos(theta) * r)
+        y = math.sin(theta) * r if not rel_pos else rel_pos[1] + (math.sin(theta) * r)
+        if random.random() < 0.15:
+            min_p, max_p = 0.005, 0.01
+        else:
+            min_p, max_p = 0.001, 0.004
+        m = random.uniform(min_p * sun_mass, max_p * sun_mass)
         v = math.sqrt(1 * sun_mass/r)
         vx = -math.sin(theta) * v
         vy = math.cos(theta) * v
@@ -64,11 +69,17 @@ class Simulation:
         while self.running:
             with self.lock:
                 for body in self.bodies:
-                    body.update(self.bodies)
+                    body.update(self.bodies, 'default', self.trail)
             time.sleep(0.00016)
 
     def run_render(self):
+        BLACK = (0, 0, 0)
+        RED = (200, 0, 0)
+        WHITE = (255, 255, 255)
+
+        font = pygame.font.SysFont("Arial", 18)
         clock = pygame.time.Clock()
+        close_button_rect = pygame.Rect(10, 10, 30, 30)
         while self.running:
             mx, my = pygame.mouse.get_pos()
             for event in pygame.event.get():
@@ -81,8 +92,11 @@ class Simulation:
                     self.scale *= zoom_factor
                     self.cam_pos = world_before - (before - pygame.Vector2(self.screen_width/2, self.screen_height/2)) / self.scale
                 elif event.type == pygame.MOUSEBUTTONDOWN:
+                    
                     if event.button == 3:
                         self.trail = True
+                    if event.button == 1 and close_button_rect.collidepoint(event.pos):
+                        self.running = False
                 elif event.type == pygame.MOUSEBUTTONUP:
                     if event.button == 3:
                         self.trail = False
@@ -100,10 +114,18 @@ class Simulation:
             for b in bodies:
                 rel = pygame.Vector2(b.x, b.y) - self.cam_pos
                 screen_pos = rel * self.scale + pygame.Vector2(w/2, h/2)
-                b.draw(self.screen, screen_pos, self.scale)
-                if self.trail:
-                    print('Trail')
-
+                b.draw(self.screen, screen_pos, self.scale, self.cam_pos, self.screen_width, self.screen_height)
+            
+            
+            if not close_button_rect.collidepoint((mx, my)):
+                pygame.draw.rect(self.screen,BLACK, close_button_rect)    
+            else:
+                pygame.draw.rect(self.screen, RED, close_button_rect)
+            text = font.render("X", True, WHITE)
+            self.screen.blit(text, (close_button_rect.x + 8, close_button_rect.y + 5))
+            fps = clock.get_fps()
+            fps_text = font.render(f"FPS: {fps:.0f}", True, (255, 255, 255))
+            self.screen.blit(fps_text, (40, 10))
             pygame.display.flip()
             clock.tick(60)
 
@@ -120,18 +142,34 @@ class Simulation:
         else:
             raise ValueError('To add new body with fixed, color or kind value please use a Body instance in .add() method.')
 if __name__ == "__main__":
+    random.seed(1000)
     bodies = []
-    sun = Body(
-        pos=[0.0, 0.0],
-        vel=[0.0, 0.0],
-        acc=[0.0, 0.0],
-        mass=1000,
-        fixed=False,
-        color=(255, 255, 0)
-    )
-    bodies.append(sun)
-    for n in range(2):
-       bodies.append(Simulation().create_rand_body(1000))
-    sim = Simulation(bodies, screen_width=1280, screen_height=720)
+    # sun = Body(
+    #     pos=[0.0, 0.0],
+    #     vel=[0.1, 0.1],
+    #     acc=[0.0, 0.0],
+    #     mass=400,
+    #     fixed=False,
+    #     color=(100, 100, 100)
+    # )
+    # bodies.append(sun)
     
+    # for n in range(2):
+    #    bodies.append(Simulation().create_rand_body(100, [0, 0]))
+    # body1 = Simulation().create_rand_body(9000, [0, 0])
+    
+    s = Body(
+        [0,0],
+        [0,0.1],
+        [0,0],
+        400,
+        fixed=True,
+        color=(230,230,0)
+    )
+    bodies.append(s)
+    for n in range(150):
+        bodies.append(Simulation().create_rand_body(400, [0,0]))
+    
+    sim = Simulation(bodies, screen_width=1280, screen_height=720)
     sim.sim()
+
