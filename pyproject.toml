@@ -9,6 +9,7 @@ readme = "README.md"
 python = "^3.11"
 pygame = "^2.6.1"
 numpy = "^2.2.5"
+numba = "^0.61.2"
 
 
 [build-system]
