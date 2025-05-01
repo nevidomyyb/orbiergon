@@ -20,10 +20,10 @@ def default_calc_pos_vel(pos, vel, acc, dt):
 def default_calc_acc(p2, p1, MIN, m_1, m_2, i_acc, j_acc):
     r = p2 - p1
     mag_sq = np.dot(r, r)
-    safe_mag_sq = max(mag_sq, MIN**2)
-    mag = np.sqrt(safe_mag_sq)
-    
-    temp = r / (np.maximum(mag_sq, MIN) * mag)
-    i_acc += m_2 * temp
-    j_acc -= m_1 * temp
+    safe_mag_sq = np.maximum(mag_sq, MIN**2)
+    inv_dist_cube = 1.0 / (safe_mag_sq * np.sqrt(safe_mag_sq))
+    force = r * inv_dist_cube
+
+    i_acc += m_2 * force
+    j_acc -= m_1 * force
     return i_acc, j_acc

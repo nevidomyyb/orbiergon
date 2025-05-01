@@ -23,11 +23,21 @@ class Body:
         self.first_pos = self.pos
         
     def draw(self, screen, screen_pos: pygame.Vector2, scale: float, cam_pos, screen_width, screen_height):
-        if isinstance(self.color, tuple) or isinstance(self.color, list):
-            color = self.color
-        else:
-            color = (255,255,255)
+        color = self.color if (isinstance(self.color, tuple) or isinstance(self.color, list)) else (255,255,255)
         radius = max(1, int(2 * math.sqrt(self.mass) * scale))
+        if self.type == "star":
+            glow_strength = 6  
+            for i in range(glow_strength, 0, -1):
+                alpha = int(255 * (i / glow_strength) * 0.2) 
+                alpha = min(alpha, 255) 
+                glow_color = (*color[:3], alpha)
+
+                glow_radius = radius + i * 1.5
+                glow_surf_size = glow_radius * 2
+                glow_surf = pygame.Surface((glow_surf_size, glow_surf_size), pygame.SRCALPHA)
+
+                pygame.draw.circle(glow_surf, glow_color, (glow_surf_size // 2, glow_surf_size // 2), glow_radius)
+                screen.blit(glow_surf, (screen_pos.x - glow_surf_size // 2, screen_pos.y - glow_surf_size // 2))
         pygame.draw.circle(screen, color,
             (int(screen_pos.x), int(screen_pos.y)),
             radius
@@ -54,9 +64,12 @@ class Body:
         self.acc = process_vector([0, 0])
         # self.print_pos()
     
-    def update_default(self, bodies: list['Body'], trail: bool =False, dt=0.1):
+    def update_default(self, bodies: list['Body'], trail: bool =False, dt= 0.005):
       
         MIN = 0.0001
+        
+        for body in bodies:
+            body.acc = np.zeros_like(body.pos)
         
         for i in range(len(bodies)):
             p1 = bodies[i].pos
