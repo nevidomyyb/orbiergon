@@ -6,6 +6,7 @@ import math
 import numpy
 
 from Body import Body
+from utils import create_rand_body
 
 class Simulation:
     def __init__(self, bodies: list[Body]=[], screen_width=800, screen_height=600):
@@ -40,32 +41,6 @@ class Simulation:
         
         self.simulation_thread.start()
         self.run_render()
-    
-    def create_rand_body(self, sun_mass, rel_pos:list=None):
-        
-        r = random.uniform(50, 300)
-        theta = random.random() * math.tau
-        x = math.cos(theta) * r if not rel_pos else rel_pos[0] + (math.cos(theta) * r)
-        y = math.sin(theta) * r if not rel_pos else rel_pos[1] + (math.sin(theta) * r)
-        if random.random() < 0.15:
-            min_p, max_p = 0.005, 0.01
-        else:
-            min_p, max_p = 0.001, 0.004
-        m = random.uniform(min_p * sun_mass, max_p * sun_mass)
-        v = math.sqrt(1 * sun_mass/r)
-        vx = -math.sin(theta) * v
-        vy = math.cos(theta) * v
-        
-        return Body(
-            [x, y],
-            [vx, vy],
-            [0.0, 0.0],
-            m,
-            False,
-            None,
-            (200, 200, 255)
-        )
-        
     
     def run(self):
         while self.running:
@@ -165,7 +140,7 @@ if __name__ == "__main__":
     # bodies.append(sun)
     
     # for n in range(2):
-    #    bodies.append(Simulation().create_rand_body(250, [0, 0]))
+    #    bodies.append(create_rand_body(250, [0, 0]))
     
     s = Body(
         [0.0,0.0],
@@ -178,7 +153,7 @@ if __name__ == "__main__":
     )
     bodies.append(s)
     for n in range(10):
-        bodies.append(Simulation().create_rand_body(400, [0,0]))
+        bodies.append(create_rand_body(400, [0,0]))
     
     sim = Simulation(bodies, screen_width=1280, screen_height=720)
     sim.sim()
