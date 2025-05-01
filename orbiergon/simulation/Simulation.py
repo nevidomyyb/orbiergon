@@ -64,6 +64,7 @@ class Simulation:
             None,
             (200, 200, 255)
         )
+        
     
     def run(self):
         while self.running:
@@ -104,15 +105,15 @@ class Simulation:
                 bodies = list(self.bodies)
             anchor = next((b for b in bodies if b.fixed), None)
             if anchor:
-                self.cam_pos = pygame.Vector2(anchor.x, anchor.y)
+                self.cam_pos = pygame.Vector2(anchor.pos[0], anchor.pos[1])
             else:
-                avg_x = sum(b.x for b in bodies)/len(bodies)
-                avg_y = sum(b.y for b in bodies)/len(bodies)
+                avg_x = sum(b.pos[0] for b in bodies)/len(bodies)
+                avg_y = sum(b.pos[1] for b in bodies)/len(bodies)
                 self.cam_pos = pygame.Vector2(avg_x, avg_y)
             self.screen.fill((0, 0, 0))
             w, h = self.screen_width, self.screen_height
             for b in bodies:
-                rel = pygame.Vector2(b.x, b.y) - self.cam_pos
+                rel = pygame.Vector2(b.pos[0], b.pos[1]) - self.cam_pos
                 screen_pos = rel * self.scale + pygame.Vector2(w/2, h/2)
                 b.draw(self.screen, screen_pos, self.scale, self.cam_pos, self.screen_width, self.screen_height)
             
@@ -144,31 +145,30 @@ class Simulation:
 if __name__ == "__main__":
     random.seed(1000)
     bodies = []
-    # sun = Body(
-    #     pos=[0.0, 0.0],
-    #     vel=[0.1, 0.1],
-    #     acc=[0.0, 0.0],
-    #     mass=400,
-    #     fixed=False,
-    #     color=(100, 100, 100)
-    # )
-    # bodies.append(sun)
-    
-    # for n in range(2):
-    #    bodies.append(Simulation().create_rand_body(100, [0, 0]))
-    # body1 = Simulation().create_rand_body(9000, [0, 0])
-    
-    s = Body(
-        [0,0],
-        [0,0.1],
-        [0,0],
-        400,
-        fixed=True,
-        color=(230,230,0)
+    sun = Body(
+        pos=[0.0, 0.0],
+        vel=[0.1, 0.1],
+        acc=[0.0, 0.0],
+        mass=400,
+        fixed=False,
+        color=(100, 100, 100)
     )
-    bodies.append(s)
-    for n in range(150):
-        bodies.append(Simulation().create_rand_body(400, [0,0]))
+    bodies.append(sun)
+    
+    for n in range(2):
+       bodies.append(Simulation().create_rand_body(250, [0, 0]))
+    
+    # s = Body(
+    #     [0.0,0.0],
+    #     [0.0,0.0],
+    #     [0.0,0.0],
+    #     400,
+    #     fixed=True,
+    #     color=(230,230,0)
+    # )
+    # bodies.append(s)
+    # for n in range(15):
+    #     bodies.append(Simulation().create_rand_body(400, [0,0]))
     
     sim = Simulation(bodies, screen_width=1280, screen_height=720)
     sim.sim()
