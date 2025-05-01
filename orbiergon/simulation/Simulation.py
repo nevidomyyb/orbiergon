@@ -11,6 +11,7 @@ class Simulation:
     def __init__(self, bodies: list[Body]=[], screen_width=800, screen_height=600):
         self.bodies = bodies
         self.running = False
+        self.paused = False
         self.simulation_thread = None
         self.render_thread = None
         self.lock = threading.Lock()
@@ -31,7 +32,7 @@ class Simulation:
         
     def sim(self):
         pygame.init()
-        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.NOFRAME | pygame.RESIZABLE)
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height),)
         
         pygame.display.set_caption('Orbiergon')
         self.running = True
@@ -42,7 +43,7 @@ class Simulation:
     
     def create_rand_body(self, sun_mass, rel_pos:list=None):
         
-        r = random.uniform(50, 500)
+        r = random.uniform(50, 300)
         theta = random.random() * math.tau
         x = math.cos(theta) * r if not rel_pos else rel_pos[0] + (math.cos(theta) * r)
         y = math.sin(theta) * r if not rel_pos else rel_pos[1] + (math.sin(theta) * r)
@@ -68,10 +69,11 @@ class Simulation:
     
     def run(self):
         while self.running:
-            with self.lock:
-                for body in self.bodies:
-                    body.update(self.bodies, 'default', self.trail)
-            time.sleep(0.00016)
+            if not self.paused:
+                with self.lock:
+                    for body in self.bodies:
+                        body.update(self.bodies, 'default', self.trail)
+                time.sleep(0.00016)
 
     def run_render(self):
         BLACK = (0, 0, 0)
@@ -101,6 +103,9 @@ class Simulation:
                 elif event.type == pygame.MOUSEBUTTONUP:
                     if event.button == 3:
                         self.trail = False
+                elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    self.paused = not self.paused        
+                
             with self.lock:
                 bodies = list(self.bodies)
             anchor = next((b for b in bodies if b.fixed), None)
@@ -127,6 +132,9 @@ class Simulation:
             fps = clock.get_fps()
             fps_text = font.render(f"FPS: {fps:.0f}", True, (255, 255, 255))
             self.screen.blit(fps_text, (40, 10))
+            if self.paused:
+                paused_text = font.render(f"PAUSED", False, (255, 0, 0))
+                self.screen.blit(paused_text, (40,60))
             pygame.display.flip()
             clock.tick(60)
 
@@ -145,30 +153,32 @@ class Simulation:
 if __name__ == "__main__":
     random.seed(1000)
     bodies = []
-    sun = Body(
-        pos=[0.0, 0.0],
-        vel=[0.1, 0.1],
-        acc=[0.0, 0.0],
-        mass=400,
-        fixed=False,
-        color=(100, 100, 100)
-    )
-    bodies.append(sun)
-    
-    for n in range(2):
-       bodies.append(Simulation().create_rand_body(250, [0, 0]))
-    
-    # s = Body(
-    #     [0.0,0.0],
-    #     [0.0,0.0],
-    #     [0.0,0.0],
-    #     400,
-    #     fixed=True,
-    #     color=(230,230,0)
+    # sun = Body(
+    #     pos=[0.0, 0.0],
+    #     vel=[0.1, 0.1],
+    #     acc=[0.0, 0.0],
+    #     mass=400,
+    #     fixed=False,
+    #     color=(230, 230, 100),
+    #     # type='star'
     # )
-    # bodies.append(s)
-    # for n in range(15):
-    #     bodies.append(Simulation().create_rand_body(400, [0,0]))
+    # bodies.append(sun)
+    
+    # for n in range(2):
+    #    bodies.append(Simulation().create_rand_body(250, [0, 0]))
+    
+    s = Body(
+        [0.0,0.0],
+        [0.0,0.0],
+        [0.0,0.0],
+        400,
+        fixed=True,
+        color=(230,230,0),
+        type='star'
+    )
+    bodies.append(s)
+    for n in range(10):
+        bodies.append(Simulation().create_rand_body(400, [0,0]))
     
     sim = Simulation(bodies, screen_width=1280, screen_height=720)
     sim.sim()
