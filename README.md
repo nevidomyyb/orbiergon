@@ -1,13 +1,22 @@
 # Orbiergon
 
-### TO DO (v1)
-- [ ] Bodies "star" emit its own light
-- [x] Zoom and panning
-- [ ] Dinamicaly add a new body when interacted with a space
+### TO DO 
+- [x] Camera
+  - [x] Zoom
+  - [x] Pan
 - [x] Pause
   - [ ] When paused, if hover a body show specs
   - [ ] When paused, can move bodies
-- [ ] Collision
-  - [ ] Fusion or destruction based on energy of the collision
-- [ ] Can follow a body
-- [ ] Trail the orbit
+- [ ] Bodies
+  - [x] Star
+    - [x] Emits own light
+  - [x] Planet
+- [ ] API
+  - [x] Add a new body
+  - [ ] Simulation
+    - [x] Pygame loop in main thread for render
+    - [ x Secondary loop for simulation calculus
+    - [ ] Trail the orbit of a body
+    - [ ] Dinamically add a new body when interacted with a space
+  - [ ] Collision
+    - [ ] Fusion or destruction based on energy of the collision
