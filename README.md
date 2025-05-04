@@ -15,7 +15,7 @@
   - [x] Add a new body
   - [ ] Simulation
     - [x] Pygame loop in main thread for render
-    - [ x Secondary loop for simulation calculus
+    - [x] Secondary loop for simulation calculus
     - [ ] Trail the orbit of a body
     - [ ] Dinamically add a new body when interacted with a space
   - [ ] Collision
