@@ -5,7 +5,7 @@ import pygame
 import time
 
 from typing import Literal, Sequence
-from utils import process_vector, default_calc_pos_vel, default_calc_acc
+from utils import process_vector, default_calc_pos_vel, default_calc_acc, calculate_all_accelerations, calculate_accelerations_parallel
 class Body:
     
     def __init__(self, pos: Sequence[int], vel: Sequence[int], acc: Sequence[int], mass: float, fixed:bool=False,type:Literal['star','planet','particle']=None, color:str=None, id=None) -> 'Body':
@@ -65,29 +65,24 @@ class Body:
         # self.print_pos()
     
     def update_default(self, bodies: list['Body'], trail: bool =False, dt= 0.005):
-      
         MIN = 0.0001
         
-        for body in bodies:
-            body.acc = np.zeros_like(body.pos)
+        # Extract positions and masses for vectorized calculation
+        positions = np.array([body.pos for body in bodies])
+        masses = np.array([body.mass for body in bodies])
+        fixed = np.array([body.fixed for body in bodies])
         
-        for i in range(len(bodies)):
-            p1 = bodies[i].pos
-            m1 = bodies[i].mass
-            for j in range(i+1, len(bodies)):
-                p2 = bodies[j].pos
-                m2 = bodies[j].mass
-                
-                i_acc, j_acc = default_calc_acc(
-                    p2, p1,
-                    MIN,
-                    m1, m2,
-                    bodies[i].acc,
-                    bodies[j].acc
-                )
-                bodies[i].acc = i_acc
-                bodies[j].acc = j_acc
-        for body in bodies:
-            body.u_update_default(dt)
+        # Use parallel calculation for better performance with many bodies
+        n_bodies = len(bodies)
+        if n_bodies >= 30:  # Use parallel version for larger simulations
+            accelerations = calculate_accelerations_parallel(positions, masses, MIN)
+        else:  # Use regular version for smaller simulations
+            accelerations = calculate_all_accelerations(positions, masses, MIN)
+        
+        # Update each body with its new acceleration
+        for i, body in enumerate(bodies):
+            if not body.fixed:  # Skip fixed bodies
+                body.acc = accelerations[i]
+                body.u_update_default(dt)
         
         

@@ -2,6 +2,7 @@ import pygame
 import time
 import threading
 import random
+import math
 
 from Body import Body
 from utils import create_rand_body
@@ -17,6 +18,13 @@ class Simulation:
         self.lock = threading.Lock()
         self.screen = None
         self.trail = False
+        self.trail_surface = None
+        self.trail_fade_rate = 2  # Higher values = faster fade
+        
+        self.frame_skip = 0  
+        self.frame_counter = 0
+        self.target_fps = 60
+        self.adaptive_performance = True
         
         self.cx = 0
         self.cy = 0
@@ -39,7 +47,7 @@ class Simulation:
         self.event_dispatcher.register(pygame.MOUSEMOTION, self.pam)
     def sim(self):
         pygame.init()
-        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.HWSURFACE | pygame.DOUBLEBUF)
         
         pygame.display.set_caption('Orbiergon')
         icon = pygame.image.load('orbiergon/orbiergon.png')
@@ -60,6 +68,11 @@ class Simulation:
 
     def run_render(self):
         clock = pygame.time.Clock()
+        
+        # Create trail surface if trails are enabled
+        if self.trail:
+            self.trail_surface = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
+            self.trail_surface.fill((0, 0, 0, 0))
             
         while self.running:
             self.mx, self.my = pygame.mouse.get_pos()
@@ -68,36 +81,94 @@ class Simulation:
                 if event.type == pygame.QUIT:
                     self.running = False
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                    self.paused = not self.paused   
+                    self.paused = not self.paused
+                elif event.type == pygame.KEYDOWN and event.key == pygame.K_t:
+                    self.trail = not self.trail
+                    if self.trail and self.trail_surface is None:
+                        self.trail_surface = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
+                        self.trail_surface.fill((0, 0, 0, 0))
+            
+            # Adaptive frame skipping based on body count and current FPS
+            if self.adaptive_performance:
+                current_fps = clock.get_fps()
+                body_count = len(self.bodies)
+                
+                if body_count > 50 and current_fps < 30:
+                    self.frame_skip = 2
+                elif body_count > 30 and current_fps < 45:
+                    self.frame_skip = 1
+                else:
+                    self.frame_skip = 0
+            
+            # Skip frames if needed
+            self.frame_counter += 1
+            if self.frame_skip > 0 and self.frame_counter % (self.frame_skip + 1) != 0:
+                clock.tick(self.target_fps)
+                continue
                 
             with self.lock:
                 bodies = list(self.bodies)
-                
+            
+            # Clear screen
             self.screen.fill((0, 0, 0))
+            
+            # Handle trails
+            if self.trail and self.trail_surface is not None:
+                # Fade existing trails
+                fade = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
+                fade.fill((0, 0, 0, self.trail_fade_rate))
+                self.trail_surface.blit(fade, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
+                
+                # Draw trails to trail surface
+                w, h = self.screen_width, self.screen_height
+                for b in bodies:
+                    if not b.fixed:  
+                        rel = pygame.Vector2(b.pos[0], b.pos[1]) - self.cam_pos
+                        screen_pos = rel * self.scale + pygame.Vector2(w/2, h/2)
+                        color = b.color if (isinstance(b.color, tuple) or isinstance(b.color, list)) else (255,255,255)
+                        trail_color = (*color[:3], 100)  # Semi-transparent
+                        pygame.draw.circle(self.trail_surface, trail_color, 
+                                        (int(screen_pos.x), int(screen_pos.y)), 
+                                        max(1, int(1 * math.sqrt(b.mass) * self.scale / 2)))
+                
+                # Draw trail surface to screen
+                self.screen.blit(self.trail_surface, (0, 0))
+            
+            # Draw bodies
             w, h = self.screen_width, self.screen_height
             for b in bodies:
                 rel = pygame.Vector2(b.pos[0], b.pos[1]) - self.cam_pos
                 screen_pos = rel * self.scale + pygame.Vector2(w/2, h/2)
-                b.draw(self.screen, screen_pos, self.scale, self.cam_pos, self.screen_width, self.screen_height)
-            
+                
+                # Only draw bodies that are within or near the screen bounds
+                if (-50 <= screen_pos.x <= w+50 and -50 <= screen_pos.y <= h+50):
+                    b.draw(self.screen, screen_pos, self.scale, self.cam_pos, self.screen_width, self.screen_height)
             
             self.draw_things(clock)
             pygame.display.flip()
-            clock.tick(60)
+            clock.tick(self.target_fps)
 
         pygame.quit()
     
-    def draw_things(self,clock):
+    def draw_things(self, clock):
         BLACK = (0, 0, 0)
         RED = (200, 0, 0)
+        YELLOW = (255, 255, 0)
+        GREEN = (0, 200, 0)
         WHITE = (255, 255, 255)
+        
         font = pygame.font.SysFont("Arial", 18)
+        small_font = pygame.font.SysFont("Arial", 14)
+        
+        # FPS counter with color coding
         fps = clock.get_fps()
-        fps_text = font.render(f"FPS: {fps:.0f}", True, (255, 255, 255))
+        fps_color = GREEN if fps >= 55 else (YELLOW if fps >= 30 else RED)
+        fps_text = font.render(f"FPS: {fps:.0f}", True, fps_color)
         self.screen.blit(fps_text, (40, 10))
+
         if self.paused:
-            paused_text = font.render(f"PAUSED", False, (255, 0, 0))
-            self.screen.blit(paused_text, (40,60))
+            paused_text = font.render("PAUSED", True, RED)
+            self.screen.blit(paused_text, (self.screen_width - 120, 10))
     
     def add(self, *args):
         """
@@ -153,11 +224,21 @@ if __name__ == "__main__":
         [0.0,0.0],
         400,
         fixed=True,
-        color=(230,230,0),
+        color=(255,0 , 255),
+        type='star'
+    )
+    p = Body(
+        [0.0, 120.0],
+        [0.5, 0.5],
+        [0.0, 0.0],
+        250,
+        fixed=False,
+        color=(255,0 , 255),
         type='star'
     )
     bodies.append(s)
-    for n in range(30):
+    # bodies.append(p)
+    for n in range(20):
         bodies.append(create_rand_body(400, [0,0]))
     
     sim = Simulation(bodies, screen_width=1280, screen_height=720)
